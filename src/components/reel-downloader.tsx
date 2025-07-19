@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -21,8 +22,6 @@ import {
   Eye,
   Calendar,
 } from "lucide-react";
-import Image from "next/image";
-
 interface VideoInfo {
   title: string;
   author?: string;
@@ -235,8 +234,9 @@ const ReelDownloader = () => {
             <div className="p-4 bg-muted rounded-lg">
               <div className="flex gap-4">
                 {videoInfo.thumbnail && (
-                  <Image
+                  <img
                     src={videoInfo.thumbnail}
+                    width={128}
                     alt={videoInfo.title}
                     className="w-32 h-24 object-cover rounded-md flex-shrink-0"
                   />
