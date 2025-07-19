@@ -2,6 +2,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import ytdl from "@distube/ytdl-core";
 
+// Add timeout wrapper for serverless environments
+const withTimeout = async <T>(
+  promise: Promise<T>,
+  timeoutMs: number = 8000,
+): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Request timeout")), timeoutMs),
+    ),
+  ]);
+};
+
 export async function POST(request: NextRequest) {
   try {
     const { url, platform } = await request.json();
@@ -52,8 +65,13 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        // Validate the YouTube URL with ytdl-core
-        if (!ytdl.validateURL(url)) {
+        // Validate the YouTube URL with ytdl-core with timeout
+        const isValidUrl = await withTimeout(
+          Promise.resolve(ytdl.validateURL(url)),
+          3000,
+        );
+
+        if (!isValidUrl) {
           return NextResponse.json(
             {
               error:
@@ -63,8 +81,8 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Get video information
-        const info = await ytdl.getInfo(url);
+        // Get video information with timeout
+        const info = await withTimeout(ytdl.getInfo(url), 8000);
         const videoDetails = info.videoDetails;
 
         // Choose the best available format
@@ -126,6 +144,17 @@ export async function POST(request: NextRequest) {
       } catch (error: any) {
         console.error("YouTube processing error:", error);
 
+        // Handle timeout errors specifically
+        if (error.message?.includes("Request timeout")) {
+          return NextResponse.json(
+            {
+              error:
+                "Request timed out. This might be due to server limitations. Please try again or use a different video.",
+            },
+            { status: 408 },
+          );
+        }
+
         // Handle specific ytdl errors
         if (error.message?.includes("Video unavailable")) {
           return NextResponse.json(
@@ -148,6 +177,31 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             { error: "This is a private video and cannot be downloaded." },
             { status: 400 },
+          );
+        }
+
+        // Handle network-related errors
+        if (error.code === "ENOTFOUND" || error.code === "ECONNREFUSED") {
+          return NextResponse.json(
+            {
+              error:
+                "Network error. Please check your connection and try again.",
+            },
+            { status: 503 },
+          );
+        }
+
+        // Handle memory errors
+        if (
+          error.message?.includes("memory") ||
+          error.message?.includes("heap")
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "Server resource limit reached. Please try with a shorter video or try again later.",
+            },
+            { status: 413 },
           );
         }
 

@@ -79,18 +79,36 @@ const ReelDownloader = () => {
         return;
       }
 
-      // Call our API route to process the video
+      // Call our API route to process the video with timeout and retry
       const response = await fetch("/api/download", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ url, platform }),
+        // Add timeout for the request
+        signal: AbortSignal.timeout(30000), // 30 seconds timeout
       });
 
       const data = await response.json();
 
       if (!response.ok) {
+        // Handle specific error status codes
+        if (response.status === 408) {
+          throw new Error(
+            "Request timed out. Please try again with a shorter video or try later.",
+          );
+        }
+        if (response.status === 413) {
+          throw new Error(
+            "Video is too large for processing. Please try with a shorter video.",
+          );
+        }
+        if (response.status === 503) {
+          throw new Error(
+            "Service temporarily unavailable. Please try again in a few minutes.",
+          );
+        }
         throw new Error(data.error || "Failed to process video");
       }
 
@@ -104,11 +122,23 @@ const ReelDownloader = () => {
       }
     } catch (error) {
       console.error("Download error:", error);
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Error downloading video. Please try again.",
-      );
+
+      // Handle specific error types
+      if (error instanceof Error) {
+        if (error.name === "AbortError") {
+          setMessage(
+            "Request timed out. Please try again with a shorter video.",
+          );
+        } else if (error.message.includes("Failed to fetch")) {
+          setMessage(
+            "Network error. Please check your connection and try again.",
+          );
+        } else {
+          setMessage(error.message);
+        }
+      } else {
+        setMessage("Error downloading video. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
