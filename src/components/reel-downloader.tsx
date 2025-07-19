@@ -2,9 +2,26 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useState } from "react";
-import { Download, Video, AlertCircle, CheckCircle, Loader2, User, Clock, Eye, Calendar } from "lucide-react";
+import {
+  Download,
+  Video,
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+  User,
+  Clock,
+  Eye,
+  Calendar,
+} from "lucide-react";
+import Image from "next/image";
 
 interface VideoInfo {
   title: string;
@@ -32,14 +49,14 @@ const ReelDownloader = () => {
   const [isDownloading, setIsDownloading] = useState(false);
 
   const detectPlatform = (url: string) => {
-    if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      return 'YouTube';
-    } else if (url.includes('instagram.com')) {
-      return 'Instagram';
-    } else if (url.includes('facebook.com') || url.includes('fb.watch')) {
-      return 'Facebook';
+    if (url.includes("youtube.com") || url.includes("youtu.be")) {
+      return "YouTube";
+    } else if (url.includes("instagram.com")) {
+      return "Instagram";
+    } else if (url.includes("facebook.com") || url.includes("fb.watch")) {
+      return "Facebook";
     }
-    return 'Unknown';
+    return "Unknown";
   };
 
   const handleDownload = async () => {
@@ -54,18 +71,20 @@ const ReelDownloader = () => {
 
     try {
       const platform = detectPlatform(url);
-      
-      if (platform === 'Unknown') {
-        setMessage("Unsupported platform. Please use YouTube, Instagram, or Facebook URLs.");
+
+      if (platform === "Unknown") {
+        setMessage(
+          "Unsupported platform. Please use YouTube, Instagram, or Facebook URLs.",
+        );
         setIsLoading(false);
         return;
       }
 
       // Call our API route to process the video
-      const response = await fetch('/api/download', {
-        method: 'POST',
+      const response = await fetch("/api/download", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ url, platform }),
       });
@@ -73,51 +92,56 @@ const ReelDownloader = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to process video');
+        throw new Error(data.error || "Failed to process video");
       }
 
       setVideoInfo(data);
-      
+
       // Show custom message if available, otherwise default message
       if (data.message) {
         setMessage(data.message);
       } else {
         setMessage(`Video from ${platform} is ready for download!`);
       }
-
     } catch (error) {
-      console.error('Download error:', error);
-      setMessage(error instanceof Error ? error.message : "Error downloading video. Please try again.");
+      console.error("Download error:", error);
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Error downloading video. Please try again.",
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleVideoDownload = async (videoInfo: VideoInfo) => {
-    if (!videoInfo.downloadUrl || videoInfo.downloadUrl === '#') {
-      setMessage('No download URL available for this video.');
+    if (!videoInfo.downloadUrl || videoInfo.downloadUrl === "#") {
+      setMessage("No download URL available for this video.");
       return;
     }
 
     setIsDownloading(true);
-    setMessage('Starting download...');
+    setMessage("Starting download...");
 
     try {
       // Use our streaming endpoint to download the video
-      const streamUrl = `/api/stream?url=${encodeURIComponent(videoInfo.downloadUrl)}&filename=${encodeURIComponent(videoInfo.filename)}`;
-      
+      const streamUrl = `/api/stream?url=${encodeURIComponent(
+        videoInfo.downloadUrl,
+      )}&filename=${encodeURIComponent(videoInfo.filename)}`;
+
       // Create a link to trigger the download
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = streamUrl;
       link.download = videoInfo.filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      setMessage('Download started! Check your downloads folder.');
+
+      setMessage("Download started! Check your downloads folder.");
     } catch (error) {
-      console.error('Download error:', error);
-      setMessage('Failed to download video. Please try again.');
+      console.error("Download error:", error);
+      setMessage("Failed to download video. Please try again.");
     } finally {
       setIsDownloading(false);
     }
@@ -126,7 +150,7 @@ const ReelDownloader = () => {
   const isValidUrl = (url: string) => {
     try {
       new URL(url);
-      return detectPlatform(url) !== 'Unknown';
+      return detectPlatform(url) !== "Unknown";
     } catch {
       return false;
     }
@@ -159,9 +183,9 @@ const ReelDownloader = () => {
             </p>
           )}
         </div>
-        
-        <Button 
-          onClick={handleDownload} 
+
+        <Button
+          onClick={handleDownload}
           disabled={!url.trim() || !isValidUrl(url) || isLoading}
           className="w-full"
           size="lg"
@@ -180,14 +204,23 @@ const ReelDownloader = () => {
         </Button>
 
         {message && (
-          <div className={`flex items-center gap-2 p-3 rounded-md ${
-            message.includes('ready') || message.includes('started') || message.includes('development')
-              ? 'bg-blue-50 text-blue-700 border border-blue-200' 
-              : message.includes('error') || message.includes('Error') || message.includes('failed') || message.includes('Failed')
-              ? 'bg-red-50 text-red-700 border border-red-200'
-              : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
-          }`}>
-            {message.includes('ready') || message.includes('started') || message.includes('development') ? (
+          <div
+            className={`flex items-center gap-2 p-3 rounded-md ${
+              message.includes("ready") ||
+              message.includes("started") ||
+              message.includes("development")
+                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                : message.includes("error") ||
+                  message.includes("Error") ||
+                  message.includes("failed") ||
+                  message.includes("Failed")
+                ? "bg-red-50 text-red-700 border border-red-200"
+                : "bg-yellow-50 text-yellow-700 border border-yellow-200"
+            }`}
+          >
+            {message.includes("ready") ||
+            message.includes("started") ||
+            message.includes("development") ? (
               <CheckCircle className="h-4 w-4" />
             ) : (
               <AlertCircle className="h-4 w-4" />
@@ -202,14 +235,16 @@ const ReelDownloader = () => {
             <div className="p-4 bg-muted rounded-lg">
               <div className="flex gap-4">
                 {videoInfo.thumbnail && (
-                  <img 
-                    src={videoInfo.thumbnail} 
+                  <Image
+                    src={videoInfo.thumbnail}
                     alt={videoInfo.title}
                     className="w-32 h-24 object-cover rounded-md flex-shrink-0"
                   />
                 )}
                 <div className="flex-1 space-y-2">
-                  <h3 className="font-medium text-lg leading-tight">{videoInfo.title}</h3>
+                  <h3 className="font-medium text-lg leading-tight">
+                    {videoInfo.title}
+                  </h3>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     {videoInfo.author && (
                       <div className="flex items-center gap-1">
@@ -226,14 +261,18 @@ const ReelDownloader = () => {
                     {videoInfo.viewCount && (
                       <div className="flex items-center gap-1">
                         <Eye className="h-4 w-4" />
-                        <span>{parseInt(videoInfo.viewCount).toLocaleString()} views</span>
+                        <span>
+                          {parseInt(videoInfo.viewCount).toLocaleString()} views
+                        </span>
                       </div>
                     )}
                   </div>
                   {videoInfo.publishDate && (
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
-                      <span>{new Date(videoInfo.publishDate).toLocaleDateString()}</span>
+                      <span>
+                        {new Date(videoInfo.publishDate).toLocaleDateString()}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -244,17 +283,35 @@ const ReelDownloader = () => {
             <div className="p-4 bg-muted rounded-lg">
               <h4 className="font-medium mb-2">Technical Details</h4>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                {videoInfo.quality && <p><strong>Quality:</strong> {videoInfo.quality}</p>}
-                {videoInfo.fileSize && <p><strong>File Size:</strong> {videoInfo.fileSize}</p>}
-                {videoInfo.container && <p><strong>Format:</strong> {videoInfo.container}</p>}
-                <p><strong>Video ID:</strong> {videoInfo.videoId}</p>
+                {videoInfo.quality && (
+                  <p>
+                    <strong>Quality:</strong> {videoInfo.quality}
+                  </p>
+                )}
+                {videoInfo.fileSize && (
+                  <p>
+                    <strong>File Size:</strong> {videoInfo.fileSize}
+                  </p>
+                )}
+                {videoInfo.container && (
+                  <p>
+                    <strong>Format:</strong> {videoInfo.container}
+                  </p>
+                )}
+                <p>
+                  <strong>Video ID:</strong> {videoInfo.videoId}
+                </p>
               </div>
             </div>
 
             {/* Download Button */}
-            <Button 
-              onClick={() => handleVideoDownload(videoInfo)} 
-              disabled={isDownloading || !videoInfo.downloadUrl || videoInfo.downloadUrl === '#'}
+            <Button
+              onClick={() => handleVideoDownload(videoInfo)}
+              disabled={
+                isDownloading ||
+                !videoInfo.downloadUrl ||
+                videoInfo.downloadUrl === "#"
+              }
               className="w-full"
               size="lg"
               variant="default"
@@ -267,7 +324,8 @@ const ReelDownloader = () => {
               ) : (
                 <>
                   <Download className="mr-2 h-4 w-4" />
-                  Download {videoInfo.fileSize ? `(${videoInfo.fileSize})` : 'Video'}
+                  Download{" "}
+                  {videoInfo.fileSize ? `(${videoInfo.fileSize})` : "Video"}
                 </>
               )}
             </Button>
