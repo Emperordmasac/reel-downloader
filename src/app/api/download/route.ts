@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import ytdl from '@distube/ytdl-core';
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,17 +49,93 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      // For now, return mock data since ytdl-core can be unreliable
-      // In production, you would implement proper video extraction here
-      return NextResponse.json({
-        title: `YouTube Video ${videoId}`,
-        duration: 'Unknown',
-        quality: 'Best Available',
-        videoId: videoId,
-        downloadUrl: `#`, // This would be the actual download URL
-        filename: `youtube_video_${videoId}.mp4`,
-        message: 'YouTube video processing is currently under development. Please check back later for full functionality.'
-      });
+      try {
+        // Validate the YouTube URL with ytdl-core
+        if (!ytdl.validateURL(url)) {
+          return NextResponse.json(
+            { error: 'Invalid YouTube URL. Video may be private, unavailable, or restricted.' },
+            { status: 400 }
+          );
+        }
+
+        // Get video information
+        const info = await ytdl.getInfo(url);
+        const videoDetails = info.videoDetails;
+        
+        // Choose the best available format
+        const format = ytdl.chooseFormat(info.formats, { 
+          quality: 'highest',
+          filter: 'audioandvideo' 
+        });
+
+        // If no audioandvideo format, fall back to highest quality available
+        const fallbackFormat = format || ytdl.chooseFormat(info.formats, { quality: 'highest' });
+        
+        if (!fallbackFormat) {
+          return NextResponse.json(
+            { error: 'No downloadable formats available for this video.' },
+            { status: 400 }
+          );
+        }
+
+        // Clean filename for download
+        const cleanTitle = videoDetails.title.replace(/[^a-zA-Z0-9\s\-_]/g, '').trim();
+        const filename = `${cleanTitle}_${videoId}.${fallbackFormat.container || 'mp4'}`;
+        
+        // Format duration
+        const durationSeconds = parseInt(videoDetails.lengthSeconds);
+        const minutes = Math.floor(durationSeconds / 60);
+        const seconds = durationSeconds % 60;
+        const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+        return NextResponse.json({
+          title: videoDetails.title,
+          author: videoDetails.author?.name || 'Unknown',
+          duration: formattedDuration,
+          durationSeconds: durationSeconds,
+          quality: fallbackFormat.qualityLabel || fallbackFormat.quality || 'Unknown',
+          videoId: videoId,
+          downloadUrl: fallbackFormat.url,
+          filename: filename,
+          fileSize: fallbackFormat.contentLength ? `${(parseInt(fallbackFormat.contentLength) / 1024 / 1024).toFixed(1)} MB` : 'Unknown',
+          container: fallbackFormat.container,
+          viewCount: videoDetails.viewCount,
+          publishDate: videoDetails.publishDate,
+          description: videoDetails.description?.substring(0, 200) + '...' || '',
+          thumbnail: videoDetails.thumbnails?.[0]?.url || null,
+          success: true
+        });
+        
+      } catch (error: any) {
+        console.error('YouTube processing error:', error);
+        
+        // Handle specific ytdl errors
+        if (error.message?.includes('Video unavailable')) {
+          return NextResponse.json(
+            { error: 'Video is unavailable. It may be private, deleted, or geo-restricted.' },
+            { status: 400 }
+          );
+        }
+        
+        if (error.message?.includes('Sign in to confirm your age')) {
+          return NextResponse.json(
+            { error: 'This video is age-restricted and cannot be downloaded.' },
+            { status: 400 }
+          );
+        }
+        
+        if (error.message?.includes('Private video')) {
+          return NextResponse.json(
+            { error: 'This is a private video and cannot be downloaded.' },
+            { status: 400 }
+          );
+        }
+        
+        return NextResponse.json(
+          { error: 'Failed to process YouTube video. Please try again later.' },
+          { status: 500 }
+        );
+      }
     }
 
     // Handle Instagram (basic implementation - Instagram requires more complex handling)
